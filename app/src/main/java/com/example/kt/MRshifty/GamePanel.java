@@ -10,14 +10,19 @@ import android.view.SurfaceView;
 
 import com.example.kt.MRshifty.R;
 
+import java.util.ArrayList;
+
 public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	public static final int WIDTH = 856;
 	public static final int HEIGHT = 480;
 	public static final int MOVESPEED = -5;
 
+	public long smokeStartTime;
+
     private MainThread thread;
     private Background bg;
     private Player player;
+    private ArrayList<Smokepuff> smoke;
 
     public GamePanel(Context context){
         super(context);
@@ -39,10 +44,10 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
             try {
                 thread.setRunning(false);
                 thread.join();
+                retry = false;
             }catch (InterruptedException e){
                 e.printStackTrace();
             }
-            retry = false;
         }
     }
 
@@ -50,6 +55,9 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
     public void surfaceCreated(SurfaceHolder holder){
         bg = new Background(BitmapFactory.decodeResource(getResources(), R.drawable.grassbg1));
         player = new Player(BitmapFactory.decodeResource(getResources(), R.drawable.helicopter), 65, 25, 3);
+        smoke = new ArrayList<Smokepuff>();
+
+        smokeStartTime = System.nanoTime();
 
 		//start game loop
         thread.setRunning(true);
@@ -77,6 +85,19 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
         if (player.getPlaying()) {
             bg.update();
             player.update();
+
+            long elapsed = (System.nanoTime() - smokeStartTime)/1000000;
+            if (elapsed > 120){
+                smoke.add(new Smokepuff(player.getX(), player.getY()+10));
+                smokeStartTime = System.nanoTime();
+            }
+
+            for (int i=0; i < smoke.size(); i++){
+                smoke.get(i).update();
+                if (smoke.get(i).getX() < -10){
+                    smoke.remove(i);
+                }
+            }
         }
     }
 
@@ -87,9 +108,15 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
         final float scaleFactorY = getHeight() / (HEIGHT * 1.f);
         if (canvas != null) {
             final int savedState = canvas.save();
+
             canvas.scale(scaleFactorX, scaleFactorY);
+
             bg.draw(canvas);
             player.draw(canvas);
+            for (Smokepuff sp:smoke){
+                sp.draw(canvas);
+            }
+
             canvas.restoreToCount(savedState);
         }
     }
